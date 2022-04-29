@@ -1,80 +1,77 @@
 .data
-	xAxis: .asciiz " 012"
-	newLine: .asciiz "\n"
-	xPrompt: .asciiz "X: "
-	yPrompt: .asciiz "Y: "
-	userPlayedPrompt: .asciiz "User played "
-	validateMoveFalsePrompt: .asciiz "The move is illegal.\n"
 	board: .byte  ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
-	moveNumberPrompt: .asciiz "The move number is "
-	moveNumber: .byte 0
-	gameWonPrompt: .asciiz " won!\n"
-	gameTiedPrompt: .asciiz "Game is a tie!\n"
-	inputRequirementPrompt: .asciiz "Invalid input. Input must be 0, 1, or 2.\n\n"
+	x_axis_text: .asciiz " 012"
+	get_x_input_text: .asciiz "X: "
+	get_y_input_text: .asciiz "Y: "
+	turn_count: .byte 0
+	turn_count_text: .asciiz "Current turn:"
+	won_game_output: .asciiz " You win!\n"
+	drawn_game_output: .asciiz "Game over. It's a draw!\n"
+	invalid_input: .asciiz "Invalid input coordinate. Please input a 0, 1, or 2.\n\n"
+	check_legal_move_false_prompt: .asciiz "Illegal move!\n"
+	user_played_text: .asciiz "User played:"
+	new_line: .asciiz "\n"
 .text	
-	### $s0 = X-input
-	### $s1 = Y-input
-	### $s2 = (X, Y) in array
-	### $s7 = current piece
+	# $s0 = x coordinate 
+	# $s1 = y coordinate
+	# $s2 = (X, Y) in array
+	# $s7 = whose turn it is
 	main:
 
 	li $s7, 'X'
-	jal printBoard			# Prints the board
+	jal show_board_array	# shows the array that represents the tic tac toe
 		
 	while:
-	jal getXInput 			# Store x-input into $s0
-	jal validateInput
+	jal get_x_coordinate 	# stores the inputted x coordinate into $s0
+	jal check_input
 	move $s0, $v0
-	jal getYInput 			# Store y-input into $s1
-	jal validateInput
+	jal get_y_coordinate 	# stores the inputted y coordinate into $s1
+	jal check_input
 	move $s1, $v0
-	jal printInput 			# Prints the last move played
-	jal transformInput		# Transform (X,Y) input into array position
-	jal validateMove # if move is legal, continue. Otherwise, return to while.
-	beq $v0, 1, validateMoveTrue
-	# validateMoveFalse
-	la $a0, validateMoveFalsePrompt
+	jal show_last_move 		# shows the last move played
+	jal process_input		# processes the input coordinates and returns the corresponding array position 
+	jal check_legal_move 	# if the move is not legal, return to the while loop
+	beq $v0, 1, check_legal_move_true
+	la $a0, check_legal_move_false_prompt
 	li $v0, 4
 	syscall
 	j while
 	
-	validateMoveTrue:
-	jal playMove	
-	jal incrementMoveNumber
-	jal printBoard			# Prints the board
+	check_legal_move_true:
+	jal make_move	
+	jal increase_move_count
+	jal show_board_array	# shows the array that represents the tic tac toe board
 	
-	jal validateIfGameOver
-	jal changePiece
-
+	jal check_if_game_over
+	jal flip_turn
 	j while
 			
 	end:
-	# End of main
+	# end of main function
 	li $v0, 10
 	syscall
 		 
-	########### Helper procedures ##########
+	# below this point are helper functions
 		
-	# Iterates though board array to print Tic-Tac-Toe board.
-	# Input: none
-	# Output: none
-	printBoard:
+	# loops through the tic tac toe board array and outputs it to the console
+	# input: none | output: none
+	show_board_array:
 		li $v0, 4
-		la $a0, moveNumberPrompt
+		la $a0, turn_count_text
 		syscall
 		li $v0, 1
-		lb $a0, moveNumber
+		lb $a0, turn_count
 		syscall
 		li $v0, 4
-		la $a0, newLine
+		la $a0, new_line
 		syscall 
 		syscall
 	
 		li $v0, 4
-		la $a0, xAxis
+		la $a0, x_axis_text
 		syscall
 		
-		la $a0, newLine
+		la $a0, new_line
 		syscall
 		
 		li $v0, 11
@@ -95,7 +92,7 @@
 		
 		li $v0, 4
 		
-		la $a0, newLine
+		la $a0, new_line
 		syscall
 		
 		li $v0, 11
@@ -116,7 +113,7 @@
 		
 		li $v0, 4
 		
-		la $a0, newLine
+		la $a0, new_line
 		syscall
 		
 		li $v0, 11
@@ -134,43 +131,41 @@
 		addi $t0, $t0, 1
 		lb $a0, board($t0)
 		syscall
-		la $a0, newLine
-		li $v0, 4		# print_string
+		la $a0, new_line
+		li $v0, 4		
 		syscall
 		syscall
 		jr $ra
 		
-	# Prompts user for integer input. Places input into $s0.
-	# Input: none
-	# Output: integer
-	getXInput:
-		la $a0, xPrompt		# $a0 = "X: "
-		li $v0, 4		# print_string
+	# prompts the player for the x-coordinate of their move, which is stored in $s0.
+	# input: none | output: integer
+	get_x_coordinate:
+		la $a0, get_x_input_text		
+		li $v0, 4		
 		syscall
-		li $v0, 5		# input_int
+		li $v0, 5		
 		syscall
 		jr $ra
 		
-	# Prompts user for integer input. Places input into $s1.
-	# Input: none
-	# Output: integer
-	getYInput:
-		la $a0, yPrompt		# $a0 equals "Y: "
-		li $v0, 4		# print_string
+	# prompts the player for the y-coordinate of their move, which is stored in $s0.
+	# input: none | output: integer
+	get_y_coordinate:
+		la $a0, get_y_input_text		
+		li $v0, 4		
 		syscall
-		li $v0, 5		# input_int
+		li $v0, 5		
 		syscall
 		jr $ra
 	
-	transformInput:
+	process_input:
 		addi $s2, $zero, 3
 		mul $s2, $s1, $s2
 		add $s2, $s2, $s0
 		jr $ra
 		
-	printInput:
-		la $a0, userPlayedPrompt
-		li $v0, 4		# print_string
+	show_last_move:
+		la $a0, user_played_text
+		li $v0, 4		
 		syscall
 		li $a0, '('		
 		li $v0, 11		# print_char	
@@ -189,32 +184,32 @@
 		syscall
 		li $a0 '.'
 		syscall
-		la $a0, newLine
-		li $v0, 4		# print_string
+		la $a0, new_line
+		li $v0, 4		
 		syscall
 		jr $ra
 		
-	### Checks if move inputted by user is legal. A move is legal if the location is unoccupied.
-	validateMove:
+	# ensures the move passed is legal (i.e. the desired spot is not filled)
+	check_legal_move:
 		lb $t7, board($s2)
-		bne $t7, ' ', moveIsIllegal
+		bne $t7, ' ', illegal_move
 		li $v0, 1		# return 1
 		jr $ra
-		moveIsIllegal:
+		illegal_move:
 			li $v0, 0	# return 0	
 			jr $ra
-	playMove:
+	make_move:
 		move $a0, $s7
 		sb $a0, board($s2)
 		jr $ra
 		
-	incrementMoveNumber:
-		lb $t7, moveNumber
+	increase_move_count:
+		lb $t7, turn_count
 		addi $t7, $t7, 1
-		sb $t7, moveNumber
+		sb $t7, turn_count
 		jr $ra
 		
-	changePiece:
+	flip_turn:
 		beq $s7, 'O', changeToX
 		li $s7, 'O'
 		jr $ra
@@ -222,13 +217,13 @@
 		li $s7, 'X'
 		jr $ra
 		
-	printMoveNumber:
+	printturn_count:
 		li $v0, 4
-		la $a0, moveNumberPrompt
+		la $a0, turn_count_text
 		syscall
 		
 		li $v0, 1
-		lb $a0, moveNumber
+		lb $a0, turn_count
 		syscall
 		
 		li $v0, 11
@@ -236,12 +231,12 @@
 		syscall
 		
 		li $v0, 4
-		la $a0, newLine
+		la $a0, new_line
 		syscall 
 		
 		jr $ra
 		
-	validateIfGameOver:
+	check_if_game_over:
 		# Check if board $s7 == [0] == board[1] == board[2]
 		addi $t4, $zero, 0
 		lb $t5, board($t4)	# t5 = board[0]
@@ -253,7 +248,7 @@
 		addi $t4, $zero, 2
 		lb $t5, board($t4)	# t5 = board[2]
 		and $t7, $t5, $t7	# t7 = board[0] && board[1] && board[2]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[0] == board[3] == board[6]
 		addi $t4, $zero, 0
@@ -264,7 +259,7 @@
 		addi $t4, $zero, 6	
 		lb $t5, board($t4)	# t5 = board[6]
 		and $t7, $t5, $t7	# t7 = board[0] && board[3] && board[6]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[0] == board[4] == board[8]
 		addi $t4, $zero, 0
@@ -275,7 +270,7 @@
 		addi $t4, $zero, 8	
 		lb $t5, board($t4)	# t5 = board[8]
 		and $t7, $t5, $t7	# t7 = board[0] && board[4] && board[8]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[3] == board[4] == board[5]
 		addi $t4, $zero, 3
@@ -286,7 +281,7 @@
 		addi $t4, $zero, 5	
 		lb $t5, board($t4)	# t5 = board[5]
 		and $t7, $t5, $t7	# t7 = board[3] && board[4] && board[5]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[1] == board[4] == board[7]
 		addi $t4, $zero, 1
@@ -297,7 +292,7 @@
 		addi $t4, $zero, 7	
 		lb $t5, board($t4)	# t5 = board[7]
 		and $t7, $t5, $t7	# t7 = board[1] && board[4] && board[7]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[2] == board[4] == board[6]
 		addi $t4, $zero, 2
@@ -308,7 +303,7 @@
 		addi $t4, $zero, 6	
 		lb $t5, board($t4)	# t5 = board[6]
 		and $t7, $t5, $t7	# t7 = board[2] && board[4] && board[6]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[6] == board[7] == board[8]
 		addi $t4, $zero, 6
@@ -319,7 +314,7 @@
 		addi $t4, $zero, 8	
 		lb $t5, board($t4)	# t5 = board[8]
 		and $t7, $t5, $t7	# t7 = board[6] && board[7] && board[8]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
 		# Check if board[2] == board[5] == board[8]
 		addi $t4, $zero, 2
@@ -330,35 +325,35 @@
 		addi $t4, $zero, 8	
 		lb $t5, board($t4)	# t5 = board[8]
 		and $t7, $t5, $t7	# t7 = board[2] && board[5] && board[8]
-		beq $t7, $s7, gameWon
+		beq $t7, $s7, won_game
 		
-		lb $t4, moveNumber
-		beq $t4, 9, gameTied
+		lb $t4, turn_count
+		beq $t4, 9, drawn_game
 		
 		jr $ra
 	
-	gameWon:
+	won_game:
 		li $v0, 11
 		move $a0, $s7
 		syscall
 		li $v0, 4
-		la $a0, gameWonPrompt
+		la $a0, won_game_output
 		syscall
 		j end
-	gameTied:
-		la $a0, gameTiedPrompt
+	drawn_game:
+		la $a0, drawn_game_output
 		li $v0, 4
 		syscall
 		j end
-	validateInput:
-		beq $v0, 0, validInput
-		beq $v0, 1, validInput
-		beq $v0, 2, validInput
+	check_input:
+		beq $v0, 0, valid_input
+		beq $v0, 1, valid_input
+		beq $v0, 2, valid_input
 		li $v0, 4
-		la $a0, inputRequirementPrompt
+		la $a0, invalid_input
 		syscall
 		j while
-		validInput:
+		valid_input:
 		jr $ra
 	
 	
