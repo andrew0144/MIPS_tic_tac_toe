@@ -14,7 +14,7 @@
 .text	
 	# $s0 = x coordinate 
 	# $s1 = y coordinate
-	# $s2 = (X, Y) in array
+	# $s2 = (X, Y) coordinates in array
 	# $s7 = whose turn it is
 	main:
 
@@ -188,7 +188,13 @@
 		li $v0, 4		
 		syscall
 		jr $ra
-		
+	
+	# makes the move
+	make_move:
+		move $a0, $s7
+		sb $a0, board($s2)
+		jr $ra
+
 	# ensures the move passed is legal (i.e. the desired spot is not filled)
 	check_legal_move:
 		lb $t7, board($s2)
@@ -198,17 +204,8 @@
 		illegal_move:
 			li $v0, 0	# return 0	
 			jr $ra
-	make_move:
-		move $a0, $s7
-		sb $a0, board($s2)
-		jr $ra
-		
-	increase_move_count:
-		lb $t7, turn_count
-		addi $t7, $t7, 1
-		sb $t7, turn_count
-		jr $ra
-		
+
+	# changes from O to X and from X to O
 	flip_turn:
 		beq $s7, 'O', changeToX
 		li $s7, 'O'
@@ -217,6 +214,14 @@
 		li $s7, 'X'
 		jr $ra
 		
+	# adds to the move number
+	increase_move_count:
+		lb $t7, turn_count
+		addi $t7, $t7, 1
+		sb $t7, turn_count
+		jr $ra
+		
+	# shows the current turn 
 	printturn_count:
 		li $v0, 4
 		la $a0, turn_count_text
@@ -235,96 +240,98 @@
 		syscall 
 		
 		jr $ra
-		
+	
+	# checks all possible rows, columns and diagonals of three
 	check_if_game_over:
-		# Check if board $s7 == [0] == board[1] == board[2]
+	
+		# check if board 0, 1, and 2 are in common
 		addi $t4, $zero, 0
-		lb $t5, board($t4)	# t5 = board[0]
+		lb $t5, board($t4)
 		addi $t4, $zero, 1	
 		
-		lb $t6, board($t4)	# t6 = board[1]
+		lb $t6, board($t4)
 	
-		and $t7, $t5, $t6	# t7 = board[0] && board[1]
+		and $t7, $t5, $t6
 		addi $t4, $zero, 2
-		lb $t5, board($t4)	# t5 = board[2]
-		and $t7, $t5, $t7	# t7 = board[0] && board[1] && board[2]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7
 		beq $t7, $s7, won_game
 		
-		# Check if board[0] == board[3] == board[6]
+		# check if board 0, 3, and 6 are in common
 		addi $t4, $zero, 0
-		lb $t5, board($t4)	# t5 = board[0]
+		lb $t5, board($t4)
 		addi $t4, $zero, 3
-		lb $t6, board($t4)	# t6 = board[3]
-		and $t7, $t5, $t6	# t7 = board[0] && board[3]
+		lb $t6, board($t4)	
+		and $t7, $t5, $t6	
 		addi $t4, $zero, 6	
-		lb $t5, board($t4)	# t5 = board[6]
-		and $t7, $t5, $t7	# t7 = board[0] && board[3] && board[6]
+		lb $t5, board($t4)	
+		and $t7, $t5, $t7	
 		beq $t7, $s7, won_game
 		
-		# Check if board[0] == board[4] == board[8]
+		# check if board 0, 4, and 8 are in common
 		addi $t4, $zero, 0
-		lb $t5, board($t4)	# t5 = board[0]
+		lb $t5, board($t4)	
 		addi $t4, $zero, 4
-		lb $t6, board($t4)	# t6 = board[4]
-		and $t7, $t5, $t6	# t7 = board[0] && board[4]
+		lb $t6, board($t4)	
+		and $t7, $t5, $t6	
 		addi $t4, $zero, 8	
-		lb $t5, board($t4)	# t5 = board[8]
-		and $t7, $t5, $t7	# t7 = board[0] && board[4] && board[8]
+		lb $t5, board($t4)	
+		and $t7, $t5, $t7	
 		beq $t7, $s7, won_game
 		
-		# Check if board[3] == board[4] == board[5]
+		# check if board 3, 4, and 5 are in common
 		addi $t4, $zero, 3
-		lb $t5, board($t4)	# t5 = board[3]
+		lb $t5, board($t4)	
 		addi $t4, $zero, 4
-		lb $t6, board($t4)	# t6 = board[4]
-		and $t7, $t5, $t6	# t7 = board[3] && board[4]
+		lb $t6, board($t4)	
+		and $t7, $t5, $t6
 		addi $t4, $zero, 5	
-		lb $t5, board($t4)	# t5 = board[5]
-		and $t7, $t5, $t7	# t7 = board[3] && board[4] && board[5]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7
 		beq $t7, $s7, won_game
 		
-		# Check if board[1] == board[4] == board[7]
+		# check if board 1, 4, and 7 are in common
 		addi $t4, $zero, 1
-		lb $t5, board($t4)	# t5 = board[1]
+		lb $t5, board($t4)
 		addi $t4, $zero, 4
-		lb $t6, board($t4)	# t6 = board[4]
-		and $t7, $t5, $t6	# t7 = board[0] && board[4]
+		lb $t6, board($t4)
+		and $t7, $t5, $t6
 		addi $t4, $zero, 7	
-		lb $t5, board($t4)	# t5 = board[7]
-		and $t7, $t5, $t7	# t7 = board[1] && board[4] && board[7]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7
 		beq $t7, $s7, won_game
 		
-		# Check if board[2] == board[4] == board[6]
+		# check if board 2, 4 and 6 are in common
 		addi $t4, $zero, 2
-		lb $t5, board($t4)	# t5 = board[2]
+		lb $t5, board($t4)
 		addi $t4, $zero, 4
-		lb $t6, board($t4)	# t6 = board[4]
-		and $t7, $t5, $t6	# t7 = board[2] && board[4]
+		lb $t6, board($t4)
+		and $t7, $t5, $t6
 		addi $t4, $zero, 6	
-		lb $t5, board($t4)	# t5 = board[6]
-		and $t7, $t5, $t7	# t7 = board[2] && board[4] && board[6]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7
 		beq $t7, $s7, won_game
 		
-		# Check if board[6] == board[7] == board[8]
+		# check if board 6, 7, and 8 are in common
 		addi $t4, $zero, 6
-		lb $t5, board($t4)	# t5 = board[6]
+		lb $t5, board($t4)
 		addi $t4, $zero, 7
-		lb $t6, board($t4)	# t6 = board[7]
-		and $t7, $t5, $t6	# t7 = board[6] && board[7]
+		lb $t6, board($t4)	
+		and $t7, $t5, $t6
 		addi $t4, $zero, 8	
-		lb $t5, board($t4)	# t5 = board[8]
-		and $t7, $t5, $t7	# t7 = board[6] && board[7] && board[8]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7	
 		beq $t7, $s7, won_game
 		
-		# Check if board[2] == board[5] == board[8]
+		# check if board 2, 5, and 8 are in common
 		addi $t4, $zero, 2
-		lb $t5, board($t4)	# t5 = board[2]
+		lb $t5, board($t4)
 		addi $t4, $zero, 5
-		lb $t6, board($t4)	# t6 = board[5]
-		and $t7, $t5, $t6	# t7 = board[2] && board[5]
+		lb $t6, board($t4)
+		and $t7, $t5, $t6
 		addi $t4, $zero, 8	
-		lb $t5, board($t4)	# t5 = board[8]
-		and $t7, $t5, $t7	# t7 = board[2] && board[5] && board[8]
+		lb $t5, board($t4)
+		and $t7, $t5, $t7
 		beq $t7, $s7, won_game
 		
 		lb $t4, turn_count
@@ -332,19 +339,6 @@
 		
 		jr $ra
 	
-	won_game:
-		li $v0, 11
-		move $a0, $s7
-		syscall
-		li $v0, 4
-		la $a0, won_game_output
-		syscall
-		j end
-	drawn_game:
-		la $a0, drawn_game_output
-		li $v0, 4
-		syscall
-		j end
 	check_input:
 		beq $v0, 0, valid_input
 		beq $v0, 1, valid_input
@@ -356,5 +350,19 @@
 		valid_input:
 		jr $ra
 	
-	
+	won_game:
+		li $v0, 11
+		move $a0, $s7
+		syscall
+		li $v0, 4
+		la $a0, won_game_output
+		syscall
+		j end
+
+	drawn_game:
+		la $a0, drawn_game_output
+		li $v0, 4
+		syscall
+		j end
+
 	
